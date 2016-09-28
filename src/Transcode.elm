@@ -14,6 +14,7 @@ type alias Config =
 type alias StreamState =
     {
         change : Change,
+        inputSignf : Int,
         output : List Int
     }
 
@@ -21,37 +22,32 @@ init : StreamState
 init =
     {
         change = 0,
+        inputSignf = 0,
         output = []
     }
 
 
 flush : Base -> StreamState -> List Int
 flush base {change,output} =
-    case TI.obtainDigit base change of
-        Nothing -> output
-        Just {digit,change} ->
-            flush base { change = change
-                       , output = digit :: output
-                       }
+    TI.unfoldFromChange base change ++ output
 
 
 transcode : Config -> List Int -> List Int
 transcode {inputBase,outputBase} xs =
     let go : Int -> StreamState -> StreamState
-        go x {output,change} =
-            let change = TI.supplyDigit inputBase change x
+        go x {output,change,inputSignf} =
+            let change = TI.supplyDigit inputBase { change = change
+                                                  , signf  = inputSignf
+                                                  } x
+                inputSignf = inputSignf + 1
+                result =  { change     = change
+                          , output     = output
+                          , inputSignf = inputSignf
+                          }
             in if change < outputBase
-            then -- not enough change to obtain
-                 { change = change
-                 , output = output
-                 }
+            then result -- not enough change to obtain
             else case TI.obtainDigit outputBase change of
-                   Nothing ->
-                      { change = change
-                      , output = output
-                      }
+                   Nothing -> result
                    Just {digit,change} ->
-                      { change = change
-                      , output = digit :: output
-                      }
-    in  List.reverse <| flush outputBase <| List.foldr go init xs
+                      { result | output = digit :: output }
+    in  flush outputBase <| List.foldr go init xs

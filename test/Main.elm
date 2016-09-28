@@ -77,6 +77,26 @@ pruneThenAdd =
     in  Fuzz.map go <| Fuzz.tuple3 (base64Int, nat, base64Int)
 
 
+
+type alias TranscodeParams =
+    {
+        inputBase  : TI.Base,
+        outputBase : TI.Base,
+        input      : List Int
+    }
+
+
+transcodeParams : Fuzz.Fuzzer TranscodeParams
+transcodeParams =
+    let go (inputBase, outputBase, xs) =
+            {
+                inputBase = inputBase,
+                outputBase = outputBase,
+                input = List.map (\x -> x % inputBase) xs
+            }
+    in  Fuzz.map go <| Fuzz.tuple3 (nat, nat, Fuzz.list base64Int)
+
+
 main : Program Never
 main = Test.run <| Test.concat
     [ describe "Char"
@@ -90,16 +110,39 @@ main = Test.run <| Test.concat
             ]
         ]
     , describe "Int"
-        [ fuzz pruneThenAdd "adding a pruned digit back, for any base, is identity" <| \{change,base} ->
+        [ fuzz pruneThenAdd "adding a pruned digit back, for any base, is identity" <| \({change,base} as orig) ->
             case TI.obtainDigit base change of
                 Nothing -> Expect.pass
-                Just xs -> TI.supplyDigit base xs.change xs.digit `Expect.equal` change
+                Just xs ->
+                    let r = TI.supplyDigit base { change = xs.change * base -- bitshift up
+                                                , signf  = 0
+                                                } xs.digit
+                    in  Expect.onFail ("orig: " ++ toString orig ++ ", obtain: " ++ toString xs ++ ", result: " ++ toString r) <|
+                        r `Expect.equal` change
         , fuzz pruneThenAdd "pruning an added digit, for any base, is identity" <| \({change,base,digit} as orig) ->
-            let change' = TI.supplyDigit base change digit
+            let change' = TI.supplyDigit base { change = change * base -- bitshift up
+                                              , signf  = 0
+                                              } digit
             in  case TI.obtainDigit base change' of
                     Nothing -> Expect.onFail ("orig: " ++ toString orig ++ ", change': " ++ toString change' ++ ", digit isn't 0") <|
                         digit `Expect.equal` 0
                     Just xs -> Expect.onFail ("orig: " ++ toString orig ++ ", change': " ++ toString change' ++ ", result: " ++ toString xs) <|
                         xs.digit `Expect.equal` digit
+        ]
+    , describe "[Int]"
+        [ fuzz pruneThenAdd "splitting then merging, for any base, is identity" <| \({change, base} as orig) ->
+            let x' = TI.unfoldFromChange base change
+                x = TI.foldToChange base x'
+            in  Expect.onFail ("orig: " ++ toString orig ++ ", unfolded: " ++ toString x' ++ ", folded: " ++ toString x) <|
+                change `Expect.equal` x
+        , fuzz transcodeParams "transcoding, then untranscoding, is identity" <| \({inputBase, outputBase, input} as orig) ->
+            let output = T.transcode { inputBase = inputBase
+                                     , outputBase = outputBase
+                                     } input
+                input' = T.transcode { inputBase = outputBase
+                                     , outputBase = inputBase
+                                     } output
+            in  Expect.onFail ("orig: " ++ toString orig ++ ", output: " ++ toString output ++ ", input': " ++ toString input') <|
+                input `Expect.equal` input'
         ]
     ]

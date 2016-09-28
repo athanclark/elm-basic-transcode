@@ -7,6 +7,9 @@
         "src"
     ],
     "exposed-modules": [
+        "Transcode",
+        "Transcode.Char",
+        "Transcode.Int"
     ],
     "dependencies": {
         "elm-lang/core": "4.0.0 <= v < 5.0.0"

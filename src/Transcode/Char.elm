@@ -1,15 +1,24 @@
 module Transcode.Char exposing (..)
 
+{-|
+@docs base16Decode, base16Encode
+@docs base58BitcoinDecode, base58BitcoinEncode
+@docs base64Decode, base64Encode
+
+@docs BadEncoding
+-}
+
 import String
+import Char
 
 
-
+{-| -}
 type BadEncoding = BadEncoding Char
 
 
--- Assumes lowercase
+{-| -}
 base16Decode : Char -> Result BadEncoding Int
-base16Decode c =
+base16Decode c' = let c = Char.toLower c' in
          if c == '0' then Ok 0
     else if c == '1' then Ok 1
     else if c == '2' then Ok 2
@@ -28,6 +37,7 @@ base16Decode c =
     else if c == 'f' then Ok 15
     else Err <| BadEncoding c
 
+{-| -}
 base16Encode : Int -> Char
 base16Encode x =
          if x <= 0 then '0'
@@ -42,6 +52,7 @@ base16Encode x =
     else 'f'
 
 
+{-| -}
 base64Decode : Char -> Result BadEncoding Int
 base64Decode c =
          if c == 'A' then Ok 0
@@ -111,6 +122,7 @@ base64Decode c =
     else Err <| BadEncoding c
 
 
+{-| -}
 base64Encode : Int -> Char
 base64Encode x =
          if x <= 0  then 'A'
@@ -179,6 +191,7 @@ base64Encode x =
     else '/'
 
 
+{-| -}
 base58BitcoinDecode : Char -> Result BadEncoding Int
 base58BitcoinDecode c =
          if c == '1' then Ok 0
@@ -242,6 +255,7 @@ base58BitcoinDecode c =
     else Err <| BadEncoding c
 
 
+{-| -}
 base58BitcoinEncode : Int -> Char
 base58BitcoinEncode x =
          if x <= 0  then '1'
